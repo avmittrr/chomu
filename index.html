@@ -1,0 +1,98 @@
+<!--
+============================================================================
+  CHOMU  —  a tiny one-page web app. Tap a button, hear a funny voice.
+============================================================================
+
+  INSTRUCTIONS FOR CLAUDE (read this first):
+
+  GOAL
+    Publish this file so it is reachable at a PUBLIC https:// URL that opens
+    and plays sound in iPhone Safari. The user is on an iPhone 14 Pro Max.
+
+  WHAT THIS FILE IS
+    A fully self-contained web app: HTML + CSS + JS + two short voice clips
+    embedded directly as base64 MP3. No build step, no dependencies, no
+    network calls. It works offline once loaded.
+
+  DEPLOY STEPS (do these in the repo this chat is scoped to, e.g. avmittrr/chomu)
+    1. Save this file at the REPO ROOT as  index.html  (root, not in a
+       subfolder) so it serves as the site root. Commit and push to the
+       default branch (main).
+    2. Enable GitHub Pages. Because the repo is PUBLIC the simple route is:
+         Settings -> Pages -> Build and deployment ->
+         Source = "Deploy from a branch", Branch = main, Folder = / (root),
+         then Save.
+       (Only the REPO OWNER can toggle Pages on; an automation/integration
+        token cannot create the Pages site — if you hit
+        "Resource not accessible by integration", ask the owner to flip that
+        one switch, then continue.)
+    3. The live URL will be:  https://<owner>.github.io/<repo>/
+       e.g.  https://avmittrr.github.io/chomu/
+       First publish takes ~1-3 minutes.
+
+  CRITICAL iOS NOTES (do NOT regress these)
+    * Sound plays through the Web Audio API by DECODING the embedded MP3.
+      This is deliberate: Web Audio IGNORES the iPhone Ring/Silent switch.
+      Do NOT switch the primary path back to speechSynthesis — on iOS it is
+      muted by the silent switch and also fails inside data: URLs. (speech
+      synthesis is kept only as a last-resort fallback.)
+    * Must be served over http(s). Local .html files and data: URLs do NOT
+      run reliably on iOS Safari — that is why a hosted URL is required.
+    * On the phone: turn the volume up; tap a button; you should hear it
+      even on silent mode.
+
+  NICE-TO-HAVE (optional, only if asked)
+    * Swap the goofy espeak clips for higher-quality ElevenLabs voice clips.
+    * Add more phrases/buttons.
+
+  The actual app starts below this comment. Leave it as-is to keep it working.
+============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Chomu</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;font-family:-apple-system,"Comic Sans MS",sans-serif;text-align:center;padding:1.5rem;color:#2b2b2b;background:linear-gradient(135deg,#ff9a9e,#fad0c4,#fbc2eb)}
+.emoji{font-size:4rem;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-14px)}}
+h1{font-size:clamp(2.5rem,12vw,5rem);text-shadow:3px 3px 0 #fff}
+#say{min-height:2.4rem;font-size:clamp(1.4rem,7vw,2.2rem);font-weight:800;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.2);transition:transform .12s}
+#say.pop{transform:scale(1.25)}
+button{font:inherit;font-size:clamp(1.2rem,5vw,1.7rem);font-weight:700;padding:1rem 2rem;border:0;border-radius:999px;color:#fff;box-shadow:0 8px 0 rgba(0,0,0,.15);margin:.4rem}
+button:active{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.15)}
+#c{background:linear-gradient(135deg,#f857a6,#ff5858)}
+#m{background:linear-gradient(135deg,#5b86e5,#36d1dc)}
+small{opacity:.65;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="emoji">🤪</div>
+<h1>Chomu</h1>
+<div id="say">&nbsp;</div>
+<button id="c">I'm a chomu</button>
+<button id="m">I'm a mundu</button>
+<small>Tap a button 🔊</small>
+<script>
+var CLIPS={chomu:"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",mundu:"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"};
+var ctx,buffers={};
+function b64ToBuf(b){var s=atob(b),n=s.length,a=new Uint8Array(n);for(var i=0;i<n;i++)a[i]=s.charCodeAt(i);return a.buffer;}
+function ensureCtx(){if(!ctx){var AC=window.AudioContext||window.webkitAudioContext;if(AC)ctx=new AC();}if(ctx&&ctx.state==="suspended")ctx.resume();return ctx;}
+function speak(t){if("speechSynthesis"in window){var u=new SpeechSynthesisUtterance(t);u.pitch=2;u.rate=.85;window.speechSynthesis.speak(u);}}
+function play(name,text){
+var s=document.getElementById("say");s.textContent=text;s.classList.remove("pop");void s.offsetWidth;s.classList.add("pop");
+var c=ensureCtx();
+if(!c){speak(text);return;}
+var go=function(buf){var src=c.createBufferSource();src.buffer=buf;src.connect(c.destination);src.start(0);};
+if(buffers[name]){go(buffers[name]);return;}
+try{c.decodeAudioData(b64ToBuf(CLIPS[name]),function(buf){buffers[name]=buf;go(buf);},function(){speak(text);});}
+catch(e){speak(text);}
+}
+document.getElementById("c").addEventListener("click",function(){play("chomu","I'm a chomu!");});
+document.getElementById("m").addEventListener("click",function(){play("mundu","I'm a mundu!");});
+</script>
+</body>
+</html>
